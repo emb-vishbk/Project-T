@@ -239,11 +239,11 @@ def main() -> None:
     # Hopkins
     H = hopkins_statistic(X, seed=args.random_seed)
     if H < 0.4:
-        hopkins_msg = "near 0 → highly clusterable"
+        hopkins_msg = "near 0 -> highly clusterable"
     elif H > 0.6:
-        hopkins_msg = "near 1 → highly clusterable"
+        hopkins_msg = "near 1 -> highly clusterable"
     else:
-        hopkins_msg = "near 0.5 → random/unstructured"
+        hopkins_msg = "near 0.5 -> random/unstructured"
     print(f"Hopkins statistic: {H:.4f} ({hopkins_msg})")
 
     # Silhouette vs K

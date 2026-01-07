@@ -1,7 +1,13 @@
-"""Stage 2.1/2.2: KMeans clustering and changepoint segmentation."""
+"""Stage 2.1/2.2: KMeans clustering and changepoint segmentation.
+
+This module provides:
+- legacy embedding-based clustering helpers (used by run_stage2.py)
+- PCA-space clustering entrypoint (train on train split PC scores, apply to all splits)
+"""
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from collections import defaultdict
@@ -394,3 +400,286 @@ def plot_sequence_with_segments(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, dpi=150)
     plt.close()
+
+
+def _get_npz_key(npz: Dict[str, Any], keys: List[str]) -> str | None:
+    for key in keys:
+        if key in npz:
+            return key
+    return None
+
+
+def _resolve_pca_paths(
+    pca_npz_dir: Path, pca_npz_train: str, pca_npz_val: str, pca_npz_test: str
+) -> Dict[str, Path | None]:
+    return {
+        "train": Path(pca_npz_train) if pca_npz_train else pca_npz_dir / "train_pca.npz",
+        "val": Path(pca_npz_val) if pca_npz_val else pca_npz_dir / "val_pca.npz",
+        "test": Path(pca_npz_test) if pca_npz_test else pca_npz_dir / "test_pca.npz",
+    }
+
+
+def load_pca_split(path: Path, pca_dim: int) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+    if not path.exists():
+        raise FileNotFoundError(f"Missing PCA npz: {path}")
+    npz = np.load(path, allow_pickle=True)
+    pcs_key = _get_npz_key(npz, ["pc_scores", "pcs"])
+    if pcs_key is None:
+        raise KeyError(f"Missing pc_scores/pcs in {path}")
+    pcs = npz[pcs_key]
+    if pcs.ndim != 2:
+        raise ValueError(f"Expected 2D PC scores in {path}, got {pcs.shape}")
+
+    session_id = npz["session_id"] if "session_id" in npz else None
+    window_idx = npz["window_idx"] if "window_idx" in npz else None
+    t_end = npz["t_end"] if "t_end" in npz else None
+    if session_id is None or (window_idx is None and t_end is None):
+        raise KeyError(f"Missing session_id/window_idx/t_end metadata in {path}")
+
+    session_id = np.asarray(session_id).astype(str)
+    if window_idx is not None:
+        window_idx = np.asarray(window_idx, dtype=int)
+    if t_end is not None:
+        t_end = np.asarray(t_end, dtype=int)
+
+    pcs = pcs[:, :pca_dim].astype(np.float32, copy=False)
+    meta = {
+        "session_id": session_id,
+        "window_idx": window_idx,
+        "t_end": t_end,
+    }
+    return pcs, meta
+
+
+def smooth_labels(labels: np.ndarray, window: int, k: int) -> np.ndarray:
+    if window <= 1:
+        return labels.copy()
+    if window % 2 == 0:
+        raise ValueError("smooth_window must be odd.")
+    n = len(labels)
+    half = window // 2
+    out = np.empty(n, dtype=np.int64)
+    for i in range(n):
+        start = max(0, i - half)
+        end = min(n, i + half + 1)
+        counts = np.bincount(labels[start:end], minlength=k)
+        out[i] = int(np.argmax(counts))
+    return out
+
+
+def build_seq_with_smoothing(
+    meta: Dict[str, np.ndarray],
+    raw_ids: np.ndarray,
+    k: int,
+    smooth_window: int,
+) -> Tuple[Dict[str, Dict[str, np.ndarray]], Dict[str, np.ndarray]]:
+    sessions = meta["session_id"]
+    window_idx = meta["window_idx"]
+    t_end = meta["t_end"]
+
+    order_key = window_idx if window_idx is not None else t_end
+    order = np.lexsort((order_key, sessions))
+    sessions = sessions[order]
+    if window_idx is not None:
+        window_idx = window_idx[order]
+    if t_end is not None:
+        t_end = t_end[order]
+    raw_ids = raw_ids[order]
+
+    smooth_ids = np.empty_like(raw_ids)
+    seq_by_session: Dict[str, Dict[str, np.ndarray]] = {}
+    for sid in np.unique(sessions):
+        mask = sessions == sid
+        smooth_ids[mask] = smooth_labels(raw_ids[mask], smooth_window, k)
+        seq_by_session[str(sid)] = {
+            "window_idx": window_idx[mask] if window_idx is not None else None,
+            "t_end": t_end[mask] if t_end is not None else None,
+            "cluster_id_raw": raw_ids[mask],
+            "cluster_id_smooth": smooth_ids[mask],
+        }
+
+    ordered = {
+        "session_id": sessions,
+        "window_idx": window_idx,
+        "t_end": t_end,
+        "cluster_id_raw": raw_ids,
+        "cluster_id_smooth": smooth_ids,
+    }
+    return seq_by_session, ordered
+
+
+def save_assignments_csv_pca(path: Path, ordered: Dict[str, np.ndarray]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            ["session_id", "window_idx", "t_end", "cluster_id_raw", "cluster_id_smooth"]
+        )
+        n = len(ordered["cluster_id_raw"])
+        if ordered["window_idx"] is None:
+            window_idx = [None] * n
+        else:
+            window_idx = ordered["window_idx"]
+        if ordered["t_end"] is None:
+            t_end = [None] * n
+        else:
+            t_end = ordered["t_end"]
+        for sid, widx, t_end, raw, smooth in zip(
+            ordered["session_id"],
+            window_idx,
+            t_end,
+            ordered["cluster_id_raw"],
+            ordered["cluster_id_smooth"],
+        ):
+            writer.writerow(
+                [
+                    sid,
+                    "" if widx is None else int(widx),
+                    "" if t_end is None else int(t_end),
+                    int(raw),
+                    int(smooth),
+                ]
+            )
+
+
+def save_seq_by_session_pca(path: Path, seq_by_session: Dict[str, Dict[str, np.ndarray]]) -> None:
+    payload = {}
+    for sid, seq in seq_by_session.items():
+        payload[sid] = {
+            "window_idx": seq["window_idx"].tolist() if seq["window_idx"] is not None else [],
+            "t_end": seq["t_end"].tolist() if seq["t_end"] is not None else [],
+            "cluster_id_raw": seq["cluster_id_raw"].tolist(),
+            "cluster_id_smooth": seq["cluster_id_smooth"].tolist(),
+        }
+    path.write_text(json.dumps(payload, indent=2))
+
+
+def _save_kmeans_model(model, out_dir: Path) -> Path:
+    try:
+        import joblib
+
+        path = out_dir / "kmeans.joblib"
+        joblib.dump(model, path)
+        return path
+    except Exception:
+        import pickle
+
+        path = out_dir / "kmeans.pkl"
+        with path.open("wb") as f:
+            pickle.dump(model, f)
+        return path
+
+
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="KMeans clustering in PCA space.")
+    parser.add_argument("--pca_npz_dir", type=str, default="artifacts/latent_viz")
+    parser.add_argument("--pca_npz_train", type=str, default="")
+    parser.add_argument("--pca_npz_val", type=str, default="")
+    parser.add_argument("--pca_npz_test", type=str, default="")
+    parser.add_argument("--pca_dim", type=int, default=6)
+    parser.add_argument("--k", type=int, default=16)
+    parser.add_argument("--smooth_window", type=int, default=5)
+    parser.add_argument("--seed", type=int, default=123)
+    parser.add_argument("--n_init", type=int, default=10)
+    parser.add_argument("--max_iter", type=int, default=300)
+    parser.add_argument("--out_dir", type=str, default="artifacts/stage2")
+    parser.add_argument("--splits", type=str, default="train,val,test")
+    parser.add_argument("--viz_all", action="store_true")
+    parser.add_argument("--viz_split", type=str, default="")
+    parser.add_argument("--viz_label", type=str, default="smooth", choices=["raw", "smooth"])
+    return parser.parse_args(argv)
+
+
+def run(args: argparse.Namespace) -> None:
+    if args.smooth_window % 2 == 0:
+        raise ValueError("smooth_window must be odd.")
+    splits = [s.strip() for s in args.splits.split(",") if s.strip()]
+    if "train" not in splits:
+        raise ValueError("train split is required to fit KMeans.")
+
+    pca_paths = _resolve_pca_paths(
+        Path(args.pca_npz_dir), args.pca_npz_train, args.pca_npz_val, args.pca_npz_test
+    )
+
+    train_path = pca_paths["train"]
+    X_train, meta_train = load_pca_split(train_path, args.pca_dim)
+
+    kmeans = fit_kmeans(X_train, k=args.k, seed=args.seed, n_init=args.n_init, max_iter=args.max_iter)
+
+    out_root = Path(args.out_dir) / f"kmeans_k{args.k}_pca"
+    out_root.mkdir(parents=True, exist_ok=True)
+    model_path = _save_kmeans_model(kmeans, out_root)
+
+    centers = getattr(kmeans, "cluster_centers_", None)
+    if centers is not None:
+        np.save(out_root / "cluster_centers.npy", np.asarray(centers, dtype=np.float32))
+
+    metrics: Dict[str, Any] = {
+        "config": {
+            "k": args.k,
+            "pca_dim": args.pca_dim,
+            "smooth_window": args.smooth_window,
+            "seed": args.seed,
+            "n_init": args.n_init,
+            "max_iter": args.max_iter,
+            "model_path": str(model_path),
+        },
+        "splits": {},
+    }
+
+    viz_splits: set[str] = set()
+    if args.viz_all:
+        viz_splits = set(splits)
+    elif args.viz_split:
+        viz_splits = {args.viz_split}
+
+    for split in splits:
+        path = pca_paths.get(split)
+        if path is None or not path.exists():
+            raise FileNotFoundError(f"Missing PCA npz for split {split}: {path}")
+        X, meta = load_pca_split(path, args.pca_dim)
+        raw_ids = predict_clusters(kmeans, X)
+        seq_by_session, ordered = build_seq_with_smoothing(
+            meta, raw_ids, k=args.k, smooth_window=args.smooth_window
+        )
+
+        save_assignments_csv_pca(out_root / f"assignments_{split}.csv", ordered)
+        save_seq_by_session_pca(out_root / f"seq_by_session_{split}.json", seq_by_session)
+
+        raw_counts = np.bincount(raw_ids, minlength=args.k).tolist()
+        smooth_counts = np.bincount(ordered["cluster_id_smooth"], minlength=args.k).tolist()
+        metrics["splits"][split] = {
+            "num_windows": int(len(raw_ids)),
+            "cluster_counts_raw": raw_counts,
+            "cluster_counts_smooth": smooth_counts,
+        }
+
+        if split in viz_splits:
+            viz_dir = out_root / "viz"
+            label_key = "cluster_id_smooth" if args.viz_label == "smooth" else "cluster_id_raw"
+            for sid, seq in seq_by_session.items():
+                x = seq["window_idx"] if seq["window_idx"] is not None else seq["t_end"]
+                t_end = seq["t_end"] if seq["t_end"] is not None else x
+                if x is None or t_end is None:
+                    continue
+                plot_seq = {
+                    "window_idx": np.asarray(x),
+                    "t_end": np.asarray(t_end),
+                    "cluster_id": np.asarray(seq[label_key]),
+                }
+                plot_sequence_with_segments(
+                    plot_seq,
+                    session_id=sid,
+                    out_path=viz_dir / f"{sid}.png",
+                    k=args.k,
+                )
+
+    (out_root / "metrics.json").write_text(json.dumps(metrics, indent=2))
+
+
+def main(argv: List[str] | None = None) -> None:
+    args = parse_args(argv)
+    run(args)
+
+
+if __name__ == "__main__":
+    main()

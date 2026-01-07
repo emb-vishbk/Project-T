@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--out_dir", type=str, default="artifacts/latent_viz")
+    parser.add_argument("--out_npz", type=str, default="")
     parser.add_argument("--session_id", type=str, default="")
     return parser.parse_args()
 
@@ -271,9 +272,11 @@ def main() -> None:
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    out_npz = Path(args.out_npz) if args.out_npz else (out_dir / "latent_pca_outputs.npz")
+    out_npz.parent.mkdir(parents=True, exist_ok=True)
 
     np.savez(
-        out_dir / "latent_pca_outputs.npz",
+        out_npz,
         z=Z.astype(np.float32),
         z_std=Z_std.astype(np.float32),
         pcs=pcs.astype(np.float32),
