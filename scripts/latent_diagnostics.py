@@ -270,6 +270,27 @@ def main() -> None:
     plt.savefig(out_dir / "silhouette_vs_k.png", dpi=150)
     plt.close()
 
+    # Inertia vs K (fixed range 4..40 step 4)
+    inertia_ks = list(range(4, 41, 4))
+    inertia_rows = []
+    inertia_X = pcs[:, : min(6, pcs.shape[1])]
+    for k in inertia_ks:
+        km = MiniBatchKMeans(n_clusters=k, random_state=args.random_seed, batch_size=1024)
+        km.fit(inertia_X)
+        inertia_rows.append({"K": k, "inertia": float(km.inertia_)})
+
+    inertia_df = pd.DataFrame(inertia_rows)
+    inertia_df.to_csv(out_dir / "inertia_vs_k.csv", index=False)
+
+    plt.figure(figsize=(6, 4))
+    plt.plot(inertia_df["K"], inertia_df["inertia"], marker="o")
+    plt.xlabel("K")
+    plt.ylabel("Inertia (SSE)")
+    plt.title("K-Means Inertia vs K")
+    plt.tight_layout()
+    plt.savefig(out_dir / "inertia_vs_k.png", dpi=150)
+    plt.close()
+
     # Stability vs seed
     stability_rows = []
     for k in args.stability_k:
