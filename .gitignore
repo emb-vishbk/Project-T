@@ -1,0 +1,38 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.env/
+
+# Data (HDD 3Hz subset)
+20200710_sensors/
+20200710_labels/
+
+# Outputs / artifacts
+artifacts/
+
+# Models (per request)
+models/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
