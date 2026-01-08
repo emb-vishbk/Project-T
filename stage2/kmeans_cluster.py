@@ -309,6 +309,57 @@ def save_assignments_csv(
             writer.writerow([sid, int(widx), int(cid), int(t_end), float(t_end_s)])
 
 
+def _assignment_order(
+    sessions: np.ndarray,
+    t_end: np.ndarray | None,
+    window_idx: np.ndarray | None,
+) -> np.ndarray:
+    sessions = sessions.astype(str)
+    if t_end is None and window_idx is None:
+        return np.argsort(sessions, kind="stable")
+    if t_end is None:
+        return np.lexsort((window_idx, sessions))
+    if window_idx is None:
+        return np.lexsort((t_end, sessions))
+    return np.lexsort((window_idx, t_end, sessions))
+
+
+def save_assignments_by_session(
+    out_dir: Path,
+    meta: Dict[str, np.ndarray],
+    cluster_ids: np.ndarray,
+) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sessions = meta["session_id"].astype(str)
+    window_idx = meta["window_idx"]
+    t_end = meta["t_end"]
+    t_end_s = meta["t_end_s"]
+
+    order = _assignment_order(sessions, t_end, window_idx)
+    sessions = sessions[order]
+    window_idx = window_idx[order]
+    t_end = t_end[order]
+    t_end_s = t_end_s[order]
+    cluster_ids = cluster_ids[order]
+
+    current_sid = None
+    writer = None
+    fh = None
+    for sid, widx, cid, te, te_s in zip(
+        sessions, window_idx, cluster_ids, t_end, t_end_s
+    ):
+        if sid != current_sid:
+            if fh is not None:
+                fh.close()
+            fh = (out_dir / f"{sid}.csv").open("w", encoding="utf-8", newline="")
+            writer = csv.writer(fh)
+            writer.writerow(["session_id", "window_idx", "cluster_id", "t_end", "t_end_s"])
+            current_sid = sid
+        writer.writerow([sid, int(widx), int(cid), int(te), float(te_s)])
+    if fh is not None:
+        fh.close()
+
+
 def save_segments_csv(path: Path, segments: List[Dict[str, Any]]) -> None:
     if not segments:
         return
@@ -541,6 +592,45 @@ def save_assignments_csv_pca(path: Path, ordered: Dict[str, np.ndarray]) -> None
             )
 
 
+def save_assignments_by_session_pca(out_dir: Path, ordered: Dict[str, np.ndarray]) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sessions = ordered["session_id"].astype(str)
+    window_idx = ordered["window_idx"]
+    t_end = ordered["t_end"]
+    raw_ids = ordered["cluster_id_raw"]
+    smooth_ids = ordered["cluster_id_smooth"]
+
+    order = _assignment_order(sessions, t_end, window_idx)
+    sessions = sessions[order]
+    raw_ids = raw_ids[order]
+    smooth_ids = smooth_ids[order]
+    if window_idx is not None:
+        window_idx = window_idx[order]
+    if t_end is not None:
+        t_end = t_end[order]
+
+    current_sid = None
+    writer = None
+    fh = None
+    n = len(sessions)
+    for i in range(n):
+        sid = sessions[i]
+        if sid != current_sid:
+            if fh is not None:
+                fh.close()
+            fh = (out_dir / f"{sid}.csv").open("w", encoding="utf-8", newline="")
+            writer = csv.writer(fh)
+            writer.writerow(
+                ["session_id", "window_idx", "t_end", "cluster_id_raw", "cluster_id_smooth"]
+            )
+            current_sid = sid
+        widx = "" if window_idx is None else int(window_idx[i])
+        te = "" if t_end is None else int(t_end[i])
+        writer.writerow([sid, widx, te, int(raw_ids[i]), int(smooth_ids[i])])
+    if fh is not None:
+        fh.close()
+
+
 def save_seq_by_session_pca(path: Path, seq_by_session: Dict[str, Dict[str, np.ndarray]]) -> None:
     payload = {}
     for sid, seq in seq_by_session.items():
@@ -642,7 +732,7 @@ def run(args: argparse.Namespace) -> None:
             meta, raw_ids, k=args.k, smooth_window=args.smooth_window
         )
 
-        save_assignments_csv_pca(out_root / f"assignments_{split}.csv", ordered)
+        save_assignments_by_session_pca(out_root / f"assignments_{split}", ordered)
         save_seq_by_session_pca(out_root / f"seq_by_session_{split}.json", seq_by_session)
 
         raw_counts = np.bincount(raw_ids, minlength=args.k).tolist()

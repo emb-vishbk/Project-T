@@ -15,7 +15,7 @@ from stage2.kmeans_cluster import (
     load_embeddings,
     plot_sequence_with_segments,
     predict_clusters,
-    save_assignments_csv,
+    save_assignments_by_session,
     save_segments_by_session,
     save_segments_csv,
     save_seq_by_session,
@@ -112,8 +112,8 @@ def main() -> None:
         if sil is not None:
             metrics["splits"][split]["silhouette"] = sil
 
-        assignments_path = out_root / f"assignments_{split}.csv"
-        save_assignments_csv(assignments_path, meta, labels)
+        assignments_dir = out_root / f"assignments_{split}"
+        save_assignments_by_session(assignments_dir, meta, labels)
 
         seq_by_session = build_sequences_by_session(meta, labels)
         save_seq_by_session(out_root / f"seq_by_session_{split}.json", seq_by_session)

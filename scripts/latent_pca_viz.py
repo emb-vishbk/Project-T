@@ -38,7 +38,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ckpt", type=str, required=True)
     parser.add_argument("--split", type=str, default="train", choices=["train", "val", "test"])
     parser.add_argument("--index_file", type=str, default="")
-    parser.add_argument("--max_windows", type=int, default=100000)
+    parser.add_argument(
+        "--max_windows",
+        type=int,
+        default=0,
+        help="Max windows to sample per split. Use 0 to disable sampling.",
+    )
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--out_dir", type=str, default="artifacts/latent_viz")
@@ -167,7 +172,7 @@ def main() -> None:
     if args.session_id:
         index_list = [rec for rec in index_list if rec["session_id"] == args.session_id]
 
-    if args.max_windows and len(index_list) > args.max_windows and not args.session_id:
+    if args.max_windows > 0 and len(index_list) > args.max_windows and not args.session_id:
         rng = np.random.default_rng(args.seed)
         idx = rng.choice(len(index_list), size=args.max_windows, replace=False)
         index_list = [index_list[i] for i in idx]
@@ -240,12 +245,12 @@ def main() -> None:
             lturn_frac.extend(x_np[:, :, idx_lturn].mean(axis=1).tolist())
             rturn_frac.extend(x_np[:, :, idx_rturn].mean(axis=1).tolist())
 
-            if args.max_windows and len(session_ids) >= args.max_windows:
+            if args.max_windows > 0 and len(session_ids) >= args.max_windows:
                 break
 
     Z = np.concatenate(Z_list, axis=0)
     total = min(len(session_ids), Z.shape[0])
-    if args.max_windows:
+    if args.max_windows > 0:
         total = min(total, args.max_windows)
     Z = Z[:total]
     session_ids = session_ids[:total]
