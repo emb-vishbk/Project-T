@@ -73,3 +73,4 @@ stack-data==0.6.3
 threadpoolctl==3.6.0
 traitlets==5.14.3
 typing_extensions==4.15.0
+tensorboard==2.20.0
