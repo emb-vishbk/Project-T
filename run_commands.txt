@@ -1,0 +1,10 @@
+
+Phase 1 - Indexing Logic and Metadata
+
+smoketest #1 - baseline
+.venv\Scripts\python.exe cli/run_data_prep.py --seed 123 --window_timesteps 18 --hop_train_timesteps 3 --hop_infer_timesteps 1 --build_inference
+
+smoketest #2 - changing the default values
+.venv\Scripts\python.exe cli/run_data_prep.py --seed 123 --window_timesteps  --hop_train_timesteps 3 --hop_infer_timesteps 1 --build_inference
+
+smoke_test #3

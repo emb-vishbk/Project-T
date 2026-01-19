@@ -493,3 +493,4 @@ These diagnostics are not strictly required for the Stage 2 contract but are str
 * The canonical experiment config schema and examples are defined in docs/CONFIGS.md.
 * All objectives must read their hyperparameters only from objective.kwargs (no predictive.* / contrastive.* / masked.* namespaces).
 * All runs must write a resolved config.json (same content as the loaded config with defaults applied).
+
