@@ -1,10 +1,41 @@
 
 Phase 1 - Indexing Logic and Metadata
 
+smoke_test #3 - testing all the parameters
+.venv\Scripts\python.exe cli/run_data_prep.py ^
+  --seed 123 ^
+  --train_ratio 0.7 ^
+  --val_ratio 0.15 ^
+  --test_ratio 0.15 ^
+  --window_timesteps 18 ^
+  --hop_train_timesteps 3 ^
+  --hop_infer_timesteps 1 ^
+  --build_inference
+
+
 smoketest #1 - baseline
 .venv\Scripts\python.exe cli/run_data_prep.py --seed 123 --window_timesteps 18 --hop_train_timesteps 3 --hop_infer_timesteps 1 --build_inference
 
 smoketest #2 - changing the default values
-.venv\Scripts\python.exe cli/run_data_prep.py --seed 123 --window_timesteps  --hop_train_timesteps 3 --hop_infer_timesteps 1 --build_inference
+.venv\Scripts\python.exe cli/run_data_prep.py --seed 123 --window_timesteps 18  --hop_train_timesteps 1 --hop_infer_timesteps 1 --build_inference
 
-smoke_test #3
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+# model training and artifacts generation
+1) standard artifacts root(default artifacts):
+.venv\Scripts\python.exe cli/train_stage1.py --config configs/stage1/pfe_tcn.yaml
+
+2) .venv\Scripts\python.exe cli/train_stage1.py --config configs/stage1/transformer_contrastive.yaml
+
+
+For extraction, match the same root you used for training.
+1) Standard artifacts root
+.venv\Scripts\python.exe cli/extract_embeddings.py --run_dir artifacts\stage1\tcn_causal_pfe\predictive_future_latent\run --splits train,val,test
+
+2) .venv\Scripts\python.exe cli/extract_embeddings.py --run_dir artifacts\stage1\transformer_ts\temporal_contrastive\run --splits train,val,test
+
+(Only the --artifacts_root needs to match the training root; the --run_dir should point to the run folder in that same root.)
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

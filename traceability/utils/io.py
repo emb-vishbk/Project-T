@@ -11,6 +11,17 @@ def read_json(path: str | Path) -> dict:
         return json.load(handle)
 
 
+def read_jsonl(path: str | Path) -> list[dict]:
+    rows: list[dict] = []
+    with Path(path).open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            rows.append(json.loads(line))
+    return rows
+
+
 def write_json(path: str | Path, payload: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

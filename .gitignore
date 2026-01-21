@@ -12,6 +12,7 @@ __pycache__/
 venv/
 ENV/
 .env/
+.venv_azure/
 
 # Data (HDD 3Hz subset)
 20200710_sensors/
@@ -35,3 +36,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Specific files
+azure/scripts/check_connection.py

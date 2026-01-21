@@ -36,7 +36,7 @@ Principle: **experiments are config-driven**. Code should not hardcode experimen
 ```yaml
 run:
   seed: 123
-  run_id: null            # optional; if null, code generates timestamp+hash
+  run_id: run             # optional; default "run" (use artifacts_root to separate runs)
 
 io:
   artifacts_root: artifacts
@@ -126,48 +126,8 @@ objective:
 
 Complete Stage 1 YAMLs - examples: 
 
-Example A — TCN AE + reconstruction
-run: {seed: 123, run_id: null}
-
-io: {artifacts_root: artifacts, data_root: data}
-
-data:
-  fs: 3
-  window_timesteps: 18
-  hop_train_timesteps: 3
-  hop_infer_timesteps: 1
-  channels: [accel_pedal_pct, steer_angle_deg, steer_speed, speed, brake_kpa, yaw_deg_s, lturn, rturn]
-  normalization:
-    zscore: true
-    clip_sigma: 5.0
-    binary_channels: [lturn, rturn]
-
-encoder:
-  name: tcn_ae
-  kwargs:
-    latent_dim: 20
-    hidden_channels: 64
-
-objective:
-  name: ae_mse
-  kwargs:
-    recon_loss: mse
-
-training:
-  epochs: 50
-  batch_size: 128
-  optimizer: {name: adamw, kwargs: {lr: 3.0e-4, weight_decay: 1.0e-2}}
-  scheduler: {name: null, kwargs: {}}
-  grad_clip_norm: 1.0
-  device: auto
-  num_workers: 0
-  log_every_steps: 50
-  eval_every_epochs: 1
-
-logging: {tensorboard: true, tb_flush_secs: 10, save_hparams: true}
-
-Example B — TCN encoder + InfoNCE
-run: {seed: 123, run_id: null}
+Example — TCN encoder + InfoNCE
+run: {seed: 123, run_id: run}
 io: {artifacts_root: artifacts, data_root: data}
 
 data:

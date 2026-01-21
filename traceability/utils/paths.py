@@ -14,23 +14,45 @@ def run_dir(
     objective_name: str,
     run_id: str,
 ) -> Path:
-    return get_artifacts_root(artifacts_root) / "runs" / encoder_name / objective_name / run_id
+    return (
+        get_artifacts_root(artifacts_root)
+        / "stage1"
+        / encoder_name
+        / objective_name
+        / run_id
+    )
 
 
 def tb_dir(run_dir_path: str | Path) -> Path:
-    return Path(run_dir_path) / "tb"
+    return Path(run_dir_path) / "tensorboard"
 
 
-def embeddings_dir(artifacts_root: str | Path, split: str) -> Path:
-    return get_artifacts_root(artifacts_root) / "embeddings" / split
+def weights_last_file(run_dir_path: str | Path) -> Path:
+    return Path(run_dir_path) / "weights_last.pt"
 
 
-def embeddings_file(artifacts_root: str | Path, split: str, session_id: str) -> Path:
-    return embeddings_dir(artifacts_root, split) / f"{session_id}.npy"
+def weights_best_file(run_dir_path: str | Path) -> Path:
+    return Path(run_dir_path) / "weights_best.pt"
 
 
-def t_end_file(artifacts_root: str | Path, split: str, session_id: str) -> Path:
-    return embeddings_dir(artifacts_root, split) / f"{session_id}_t_end.npy"
+def config_file(run_dir_path: str | Path) -> Path:
+    return Path(run_dir_path) / "config.json"
+
+
+def metrics_file(run_dir_path: str | Path) -> Path:
+    return Path(run_dir_path) / "metrics.json"
+
+
+def embeddings_dir(run_dir_path: str | Path, split: str) -> Path:
+    return Path(run_dir_path) / "embeddings" / split
+
+
+def embeddings_file(run_dir_path: str | Path, split: str, session_id: str) -> Path:
+    return embeddings_dir(run_dir_path, split) / f"{session_id}.npy"
+
+
+def t_end_file(run_dir_path: str | Path, split: str, session_id: str) -> Path:
+    return embeddings_dir(run_dir_path, split) / f"{session_id}_t_end.npy"
 
 
 def get_data_root(data_root: str | Path) -> Path:

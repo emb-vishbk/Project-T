@@ -1,4 +1,4 @@
-# TENSORBOARD.md — Experiment Logging Contract
+# TENSORBOARD.md - Experiment Logging Contract
 
 ## Goal
 Make every run inspectable, comparable, and reproducible via TensorBoard.
@@ -9,7 +9,7 @@ For every Stage 1 run directory:
 <run_dir>/tensorboard/   (TensorBoard event files)
 
 Where run_dir is:
-artifacts/runs/{encoder_name}/{objective_name}/{run_id}/
+artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/
 
 ## Mandatory logs (Stage 1)
 ### A) Resolved config (single source of truth)

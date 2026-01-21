@@ -25,6 +25,7 @@ pytz==2025.2
 tzdata==2025.3
 filelock==3.20.1
 fsspec==2025.12.0
+PyYAML==6.0.2
 
 # Plotting Dependencies
 contourpy==1.3.3

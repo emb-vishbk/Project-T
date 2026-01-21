@@ -134,7 +134,7 @@ Practical quickstart (what to run first)
 - Train an encoder using a config:
   python train_encoder.py --config configs/...
 - Extract embeddings for all splits from a chosen run:
-  python extract_embeddings.py --run_dir artifacts/runs/{encoder_name}/{objective_name}/<run_id>/ --splits train,val,test
+  python extract_embeddings.py --run_dir artifacts/stage1/{encoder_name}/{objective_name}/<run_id>/ --splits train,val,test
 - Implement the dataset class and iterate a small batch to confirm correct window extraction and hop behavior
 
 Notes and pitfalls
@@ -258,8 +258,8 @@ The config must specify:
 * encoder.* and objective.*
 * optimizer/scheduler settings, seeds, device, logging/output dirs, etc.
 
-Outputs in artifacts/runs/stage1/{encoder_name}/{objective_name}/{run_id}/ (per run).
-Each run writes to a unique subdirectory under artifacts/runs/stage1/{encoder_name}/{objective_name}/ (e.g. timestamp or run_id) and must contain at least:
+Outputs in artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/ (per run).
+Each run writes to a unique subdirectory under artifacts/stage1/{encoder_name}/{objective_name}/ (e.g. run_id) and must contain at least:
 
 
 * weights_last.pt, weights_best.pt — encoder weights (sufficient to call encode)
@@ -270,7 +270,7 @@ Extract embeddings (using hop_infer_timesteps for windowing).
 After training, extract embeddings for all splits using the inference hop:
 
 python extract_embeddings.py 
---run_dir artifacts/runs/{encoder_name}/{objective_name}/<run_id>/ 
+--run_dir artifacts/stage1/{encoder_name}/{objective_name}/<run_id>/ 
 --splits train,val,test
 
 extract_embeddings.py must:
@@ -280,8 +280,8 @@ extract_embeddings.py must:
 * call encoder.encode(x) in time order per session
 * save, for each split and session:
 
-  * artifacts/embeddings/{split}/{session_id}.npy — array of shape (T', embedding_dim)
-  * artifacts/embeddings/{split}/{session_id}_t_end.npy — matching t_end for each embedding
+  * artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/embeddings/{split}/{session_id}.npy — array of shape (T', embedding_dim)
+  * artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/embeddings/{split}/{session_id}_t_end.npy — matching t_end for each embedding
 
 These files form the only contract Stage 2 needs: per-session sequences of (z_t, t_end).
 
@@ -300,8 +300,8 @@ Inputs and assumptions
 
 * Inputs come only from Stage 1:
 
-  * embeddings: `artifacts/embeddings/{split}/{session_id}.npy` — shape (T', embedding_dim)
-  * t_end indices: `artifacts/embeddings/{split}/{session_id}_t_end.npy` — shape (T',)
+  * embeddings: `artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/embeddings/{split}/{session_id}.npy` — shape (T', embedding_dim)
+  * t_end indices: `artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/embeddings/{split}/{session_id}_t_end.npy` — shape (T',)
 * Clustering is fit on **train** embeddings only; val/test are used for evaluation and visualization.
 
 Stage 2.0 – Latent-space diagnostics (pre-clustering)
@@ -374,8 +374,8 @@ For each split in `--splits train,val,test` and each session:
 
 1. Load embeddings and t_end:
 
-   * Z_session: `artifacts/embeddings/{split}/{session_id}.npy` — shape (T', embedding_dim)
-   * t_end: `artifacts/embeddings/{split}/{session_id}_t_end.npy` — shape (T',)
+   * Z_session: `artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/embeddings/{split}/{session_id}.npy` — shape (T', embedding_dim)
+   * t_end: `artifacts/stage1/{encoder_name}/{objective_name}/{run_id}/embeddings/{split}/{session_id}_t_end.npy` — shape (T',)
    * Define `window_idx` as 0..T'-1 for that session.
 
 2. Raw cluster IDs (no temporal smoothing):

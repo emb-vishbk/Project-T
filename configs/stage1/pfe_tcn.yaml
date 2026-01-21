@@ -1,0 +1,62 @@
+run:
+  seed: 123
+  run_id: run
+
+io:
+  artifacts_root: artifacts
+  data_root: data
+
+data:
+  fs: 3
+  window_timesteps: 18
+  hop_train_timesteps: 1
+  hop_infer_timesteps: 1
+  channels:
+    - accel_pedal_pct
+    - steer_angle_deg
+    - steer_speed
+    - speed
+    - brake_kpa
+    - lturn
+    - rturn
+    - yaw_deg_s
+  normalization:
+    zscore: true
+    clip_sigma: null
+    binary_channels: [lturn, rturn]
+
+encoder:
+  name: tcn_causal_pfe
+  kwargs:
+    input_dim: 8
+    embedding_dim: 64
+    tcn_channels: 64
+    tcn_depth: 4
+    kernel_size: 3
+    dilation_base: 2
+    dropout: 0.1
+    pooling: {type: last_k, k: 3}
+    future_mlp_hidden: 64
+
+objective:
+  name: predictive_future_latent
+  kwargs:
+    future_offset_timesteps: 9
+    loss_type: smooth_l1
+    cosine_weight: 0.0
+
+training:
+  epochs: 1
+  batch_size: 16
+  optimizer: {name: adamw, kwargs: {lr: 3.0e-4, weight_decay: 1.0e-2}}
+  scheduler: {name: null, kwargs: {}}
+  grad_clip_norm: 1.0
+  device: auto
+  num_workers: 0
+  log_every_steps: 50
+  eval_every_epochs: 1
+
+logging:
+  tensorboard: true
+  tb_flush_secs: 10
+  save_hparams: true
