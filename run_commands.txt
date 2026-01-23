@@ -37,5 +37,4 @@ For extraction, match the same root you used for training.
 (Only the --artifacts_root needs to match the training root; the --run_dir should point to the run folder in that same root.)
 
 
-
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

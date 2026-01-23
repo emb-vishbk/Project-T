@@ -39,3 +39,10 @@ Thumbs.db
 
 # Specific files
 azure/scripts/check_connection.py
+config.local.json
+*.local.json
+*.env
+*.key
+*.pem
+*.pfx
+secrets.json

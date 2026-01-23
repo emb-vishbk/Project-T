@@ -68,17 +68,19 @@ def _move_batch_to_device(batch: dict, device: torch.device) -> dict:
 
 def _resolve_data_paths(config: dict) -> dict[str, str]:
     data_root = config["io"]["data_root"]
+    artifacts_root = config["io"]["artifacts_root"]
     data_paths = config.get("data", {}).get("paths", {})
     sensors_root = data_paths.get("sensors_root") or str(paths.sensors_dir(data_root))
     labels_root = data_paths.get("labels_root") or str(paths.labels_dir(data_root))
     index_train = data_paths.get("index_training_train") or str(
-        paths.index_file(data_root, "training", "train")
+        paths.index_file(artifacts_root, "training", "train")
     )
     index_val = data_paths.get("index_training_val") or str(
-        paths.index_file(data_root, "training", "val")
+        paths.index_file(artifacts_root, "training", "val")
     )
     return {
         "data_root": data_root,
+        "artifacts_root": artifacts_root,
         "sensors_root": sensors_root,
         "labels_root": labels_root,
         "index_train": index_train,
@@ -161,7 +163,7 @@ def train(config: dict) -> str:
         _log_hparams(writer, config)
 
     data_paths = _resolve_data_paths(config)
-    normalization = read_json(paths.normalization_file(data_paths["data_root"]))
+    normalization = read_json(paths.normalization_file(data_paths["artifacts_root"]))
 
     dataset_args = dict(
         sensors_root=data_paths["sensors_root"],

@@ -1,0 +1,27 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+
+name: env-smoke
+display_name: env-smoke
+experiment_name: env-smoke
+
+code: ../..
+
+# ACPT curated env (PyTorch 2.2 + CUDA 12.1 + Python 3.10) via registry URI
+environment: azureml://registries/azureml/environments/acpt-pytorch-2.2-cuda12.1/versions/47
+
+# Your compute cluster
+compute: value-engineering-v100
+
+command: |
+  set -eux
+  python -V
+  python -c "import sys; print('sys.version=', sys.version)"
+  python -m pip --version
+  python -m pip install -U pip setuptools wheel
+
+  # editable install of your repo (requires pyproject.toml or setup.py)
+  python -m pip install -e .
+
+  # import test
+  python -c "import traceability; print('traceability import OK')"

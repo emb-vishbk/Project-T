@@ -97,6 +97,7 @@ Simplest alignment: assign window label as y[t_end] (label at window end).
 Alternative: majority label over the window or center label; keep this configurable.
 
 Deliverables expected from the agent (implementation plan)
+All data-prep outputs (dataset_summary, splits, normalization, indices) live under artifacts_root/data_info/{meta,index}/.
 1) Dataset scan and validation
 - Iterate all files in 20200710_sensors/sensor and 20200710_labels/target
 - Verify each session_id exists in both folders

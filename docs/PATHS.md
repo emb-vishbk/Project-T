@@ -7,6 +7,9 @@ All filesystem paths must be generated via traceability/utils/paths.py.
 ## Canonical layout
 
 artifacts/
+  data_info/
+    meta/                # dataset_summary.json, splits.json, normalization.json
+    index/               # index_training_*.jsonl, index_inference_*.jsonl
   stage1/
     {encoder_name}/
       {objective_name}/

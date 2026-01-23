@@ -1,0 +1,14 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: stage1-smoke-test
+experiment_name: stage1-smoke-test
+code: ../..
+environment: azureml://registries/azureml/environments/acpt-pytorch-2.2-cuda12.1/versions/47
+compute: value-engineering-v100
+outputs:
+  artifacts_root:
+    type: uri_folder
+command: >-
+  python -c "import sys,platform; print(sys.version); print(platform.platform())" &&
+  python -m pip install -e . &&
+  python -c "from pathlib import Path; out=Path('${{outputs.artifacts_root}}'); out.mkdir(parents=True, exist_ok=True); (out/'hello.txt').write_text('hello from smoke test\\n')"

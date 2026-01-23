@@ -1,0 +1,15 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: stage1-data-mount-smoke
+experiment_name: stage1-data-mount-smoke
+code: ../..
+environment: azureml://registries/azureml/environments/acpt-pytorch-2.2-cuda12.1/versions/47
+compute: value-engineering-v100
+inputs:
+  data_root:
+    type: uri_folder
+    path: azureml:hdd_3hz_asset:1
+command: >-
+  ls -la ${{inputs.data_root}} &&
+  ls -la ${{inputs.data_root}}/raw &&
+  python -c "from pathlib import Path; root=Path('${{inputs.data_root}}'); raw=root/'raw'; sensors=raw/'20200710_sensors'/'sensor'; labels=raw/'20200710_labels'/'target'; print('sensors_dir', sensors); print('labels_dir', labels); print('num_sensors', len(list(sensors.glob('*.npy')))); print('num_labels', len(list(labels.glob('*.npy')))); samples=list(sensors.glob('*.npy'))[:3]; print('samples', [str(p) for p in samples])"

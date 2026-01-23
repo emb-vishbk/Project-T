@@ -1,0 +1,38 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: stage1-train
+experiment_name: stage1-train_pfe_tcn
+code: ../..
+environment: azureml://registries/azureml/environments/acpt-pytorch-2.2-cuda12.1/versions/47
+compute: value-engineering-v100
+
+inputs:
+  data_root:
+    type: uri_folder
+    path: azureml:hdd_3hz_asset:1
+  stage1_config: configs/stage1/pfe_tcn.yaml
+  seed: 123
+  window_timesteps: 18
+  hop_train_timesteps: 3
+  hop_infer_timesteps: 1
+outputs:
+  artifacts_root:
+    type: uri_folder
+command: |
+  set -euo pipefail
+  DATA_ROOT="${{inputs.data_root}}"
+  OUT_ROOT="${{outputs.artifacts_root}}"
+  STAGE1_CONFIG="${{inputs.stage1_config}}"
+  python -m pip install -e .
+  python cli/run_data_prep.py --data_root "$DATA_ROOT" --artifacts_root "$OUT_ROOT" --seed ${{inputs.seed}} --window_timesteps ${{inputs.window_timesteps}} --hop_train_timesteps ${{inputs.hop_train_timesteps}} --hop_infer_timesteps ${{inputs.hop_infer_timesteps}} --build_inference
+  python cli/train_stage1.py --config "$STAGE1_CONFIG" --data_root "$DATA_ROOT" --artifacts_root "$OUT_ROOT"
+  RUN_DIR=$(python - "$STAGE1_CONFIG" "$OUT_ROOT" <<'PY'
+  from traceability.config.load import load_config
+  from traceability.utils import paths
+  import sys
+  config = load_config(sys.argv[1])
+  run_dir = paths.run_dir(sys.argv[2], config["encoder"]["name"], config["objective"]["name"], config["run"]["run_id"])
+  print(run_dir)
+  PY
+  )
+  python cli/extract_embeddings.py --run_dir "$RUN_DIR" --data_root "$DATA_ROOT" --artifacts_root "$OUT_ROOT" --splits train,val,test

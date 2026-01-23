@@ -37,26 +37,37 @@ def _load_encoder(run_dir: Path, config: dict, device: torch.device):
     return encoder
 
 
-def _resolve_data_paths(config: dict, data_root_override: str | None) -> dict[str, str]:
+def _resolve_data_paths(
+    config: dict,
+    data_root_override: str | None,
+    artifacts_root_override: str | None,
+) -> dict[str, str]:
     data_root = data_root_override or config["io"]["data_root"]
+    artifacts_root = artifacts_root_override or config["io"]["artifacts_root"]
     data_paths = config.get("data", {}).get("paths", {})
     sensors_root = data_paths.get("sensors_root") or str(paths.sensors_dir(data_root))
     labels_root = data_paths.get("labels_root") or str(paths.labels_dir(data_root))
-    return {"data_root": data_root, "sensors_root": sensors_root, "labels_root": labels_root}
+    return {
+        "data_root": data_root,
+        "artifacts_root": artifacts_root,
+        "sensors_root": sensors_root,
+        "labels_root": labels_root,
+    }
 
 
 def _load_inference_index(
+    artifacts_root: str,
     data_root: str,
     sensors_root: str,
     split: str,
     window_timesteps: int,
     hop_infer_timesteps: int,
 ) -> list[dict]:
-    index_path = paths.index_file(data_root, "inference", split)
+    index_path = paths.index_file(artifacts_root, "inference", split)
     if Path(index_path).exists():
         return read_jsonl(index_path)
 
-    splits = read_json(paths.splits_file(data_root))
+    splits = read_json(paths.splits_file(artifacts_root))
     session_ids = splits["splits"][split]
     entries, _ = build_window_index(
         sensors_root,
@@ -83,8 +94,8 @@ def extract_embeddings(
     run_dir = Path(run_dir)
     config = read_json(paths.config_file(run_dir))
 
-    data_paths = _resolve_data_paths(config, data_root_override)
-    normalization = read_json(paths.normalization_file(data_paths["data_root"]))
+    data_paths = _resolve_data_paths(config, data_root_override, artifacts_root_override)
+    normalization = read_json(paths.normalization_file(data_paths["artifacts_root"]))
 
     device = _select_device(config["training"]["device"])
     encoder = _load_encoder(run_dir, config, device)
@@ -104,6 +115,7 @@ def extract_embeddings(
 
     for split in splits:
         index_entries = _load_inference_index(
+            data_paths["artifacts_root"],
             data_paths["data_root"],
             data_paths["sensors_root"],
             split,

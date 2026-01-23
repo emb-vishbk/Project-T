@@ -25,7 +25,16 @@ from traceability.utils.io import write_json, write_jsonl
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run dataset scan, splits, stats, and indices.")
-    parser.add_argument("--data_root", default="data", help="Root data directory.")
+    parser.add_argument(
+        "--data_root",
+        default="data",
+        help="Root data directory (expects data_root/raw/...).",
+    )
+    parser.add_argument(
+        "--artifacts_root",
+        default="artifacts",
+        help="Root artifacts directory for meta/index outputs.",
+    )
     parser.add_argument("--fs", type=float, default=3.0, help="Sampling rate (Hz).")
     parser.add_argument("--seed", type=int, required=True, help="Random seed.")
     parser.add_argument("--train_ratio", type=float, default=0.7, help="Train ratio.")
@@ -43,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _write_indices(
-    data_root: str,
+    artifacts_root: str,
     sensors_root: str,
     splits: dict,
     index_family: str,
@@ -58,7 +67,7 @@ def _write_indices(
             window_timesteps=window_timesteps,
             hop_timesteps=hop_timesteps,
         )
-        output_path = paths.index_file(data_root, index_family, split_name)
+        output_path = paths.index_file(artifacts_root, index_family, split_name)
         write_jsonl(output_path, entries)
         summary_by_split[split_name] = summary
     return summary_by_split
@@ -77,7 +86,7 @@ def main() -> None:
         fs=args.fs,
         expected_channels=len(CHANNELS),
     )
-    dataset_summary_path = paths.dataset_summary_file(args.data_root)
+    dataset_summary_path = paths.dataset_summary_file(args.artifacts_root)
     write_json(dataset_summary_path, summary)
 
     splits = split_sessions(
@@ -97,7 +106,7 @@ def main() -> None:
         "counts": {split: len(ids) for split, ids in splits.items()},
         "splits": splits,
     }
-    splits_path = paths.splits_file(args.data_root)
+    splits_path = paths.splits_file(args.artifacts_root)
     write_json(splits_path, splits_payload)
 
     stats = compute_normalization_stats(
@@ -110,11 +119,11 @@ def main() -> None:
     stats["continuous_channels"] = continuous_channels()
     stats["train_session_ids"] = list(splits["train"])
     stats["seed"] = int(args.seed)
-    normalization_path = paths.normalization_file(args.data_root)
+    normalization_path = paths.normalization_file(args.artifacts_root)
     write_json(normalization_path, stats)
 
     training_summary = _write_indices(
-        args.data_root,
+        args.artifacts_root,
         str(sensors_root),
         splits,
         index_family="training",
@@ -130,7 +139,7 @@ def main() -> None:
 
     if args.build_inference:
         inference_summary = _write_indices(
-            args.data_root,
+            args.artifacts_root,
             str(sensors_root),
             splits,
             index_family="inference",
@@ -139,7 +148,7 @@ def main() -> None:
         )
         index_meta["inference"] = inference_summary
 
-    index_summary_path = paths.index_dir(args.data_root) / "index_summary.json"
+    index_summary_path = paths.index_dir(args.artifacts_root) / "index_summary.json"
     write_json(index_summary_path, index_meta)
 
     print("Data prep complete.")
@@ -147,7 +156,7 @@ def main() -> None:
     print(f"Splits: {splits_path}")
     print(f"Normalization: {normalization_path}")
     print(f"Index summary: {index_summary_path}")
-    print(f"Training indices: {paths.index_dir(args.data_root)}")
+    print(f"Training indices: {paths.index_dir(args.artifacts_root)}")
 
 
 if __name__ == "__main__":

@@ -71,25 +71,29 @@ def labels_dir(data_root: str | Path) -> Path:
     return raw_root(data_root) / "20200710_labels" / "target"
 
 
-def meta_dir(data_root: str | Path) -> Path:
-    return get_data_root(data_root) / "meta"
+def data_info_dir(artifacts_root: str | Path) -> Path:
+    return get_artifacts_root(artifacts_root) / "data_info"
 
 
-def index_dir(data_root: str | Path) -> Path:
-    return get_data_root(data_root) / "index"
+def meta_dir(artifacts_root: str | Path) -> Path:
+    return data_info_dir(artifacts_root) / "meta"
 
 
-def splits_file(data_root: str | Path) -> Path:
-    return meta_dir(data_root) / "splits.json"
+def index_dir(artifacts_root: str | Path) -> Path:
+    return data_info_dir(artifacts_root) / "index"
 
 
-def normalization_file(data_root: str | Path) -> Path:
-    return meta_dir(data_root) / "normalization.json"
+def splits_file(artifacts_root: str | Path) -> Path:
+    return meta_dir(artifacts_root) / "splits.json"
 
 
-def dataset_summary_file(data_root: str | Path) -> Path:
-    return meta_dir(data_root) / "dataset_summary.json"
+def normalization_file(artifacts_root: str | Path) -> Path:
+    return meta_dir(artifacts_root) / "normalization.json"
 
 
-def index_file(data_root: str | Path, index_family: str, split: str) -> Path:
-    return index_dir(data_root) / f"index_{index_family}_{split}.jsonl"
+def dataset_summary_file(artifacts_root: str | Path) -> Path:
+    return meta_dir(artifacts_root) / "dataset_summary.json"
+
+
+def index_file(artifacts_root: str | Path, index_family: str, split: str) -> Path:
+    return index_dir(artifacts_root) / f"index_{index_family}_{split}.jsonl"
